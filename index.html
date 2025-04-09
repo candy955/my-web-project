@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务发布系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #34495e;
+            font-weight: 500;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .success {
+            background: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+
+        .error {
+            background: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>发布新任务</h2>
+        <form id="taskForm">
+            <div class="form-group">
+                <label for="taskname">任务名称：</label>
+                <input type="text" id="taskname" placeholder="请输入任务名称" required>
+            </div>
+
+            <div class="form-group">
+                <label for="startdate">开始时间：</label>
+                <input type="datetime-local" id="startdate" required>
+            </div>
+
+            <div class="form-group">
+                <label for="shouldenddate">结束时间：</label>
+                <input type="datetime-local" id="shouldenddate" required>
+            </div>
+
+            <div class="form-group">
+                <label for="extracontent">任务内容：</label>
+                <textarea id="extracontent" rows="5" placeholder="请输入详细任务内容..." required></textarea>
+            </div>
+
+            <button type="submit">立即发布</button>
+        </form>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('taskForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                // 清除旧状态
+                resultDiv.style.display = 'none';
+                
+                // 表单验证
+                const startDate = new Date(document.getElementById('startdate').value);
+                const endDate = new Date(document.getElementById('shouldenddate').value);
+                
+                if (endDate <= startDate) {
+                    throw new Error('结束时间必须晚于开始时间');
+                }
+
+                // 构建请求数据
+                const formData = {
+                    taskname: document.getElementById('taskname').value.trim(),
+                    startdate: formatDateTime(document.getElementById('startdate').value),
+                    shouldenddate: formatDateTime(document.getElementById('shouldenddate').value),
+                    extracontent: document.getElementById('extracontent').value.trim()
+                };
+
+                // 发送请求
+                const response = await axios.post(
+                    'http://192.168.203.80:8083/epoint-omn-web/res/gyh/addid',
+                    { params: formData },
+                    {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // 如需认证可在此添加Token
+                            // 'Authorization': 'Bearer your_token_here'
+                        }
+                    }
+                );
+
+                // 处理响应
+                resultDiv.style.display = 'block';
+                if (response.data.status.code === 1) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = response.data.custom.msg;
+                    document.getElementById('taskForm').reset();
+                    setTimeout(() => resultDiv.style.display = 'none', 3000);
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `错误：${response.data.status.text || '未知错误'}`;
+                }
+            } catch (error) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'error';
+                if (error.response) {
+                    // 服务器响应错误
+                    resultDiv.innerHTML = `服务器错误：${error.response.data.status.text}`;
+                } else {
+                    // 网络或其他错误
+                    resultDiv.innerHTML = `错误：${error.message}`;
+                }
+            }
+        });
+
+        // 时间格式转换（兼容Safari）
+        function formatDateTime(localDateTime) {
+            const date = new Date(localDateTime);
+            const pad = n => n.toString().padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ` +
+                   `${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+        }
+    </script>
+</body>
+</html>
